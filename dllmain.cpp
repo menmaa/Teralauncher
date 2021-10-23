@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include "discord_rpc.h"
 
 #define LAUNCHER_CLASS L"EME.LauncherWnd"
 #define LAUNCHER_WINDOW LAUNCHER_CLASS
@@ -82,7 +84,7 @@ DWORD WINAPI MessageHandler(LPVOID nothing)
 			pCds.dwData = cds.dwData;
 			pCds.cbData = lstrlenA(out) + 1;
 			pCds.lpData = (LPVOID)out;
-			DWORD lpdwResult;
+			DWORD_PTR lpdwResult;
 			SendMessageTimeout((HWND)wParamProc, WM_COPYDATA, (WPARAM)hWndProc, (LPARAM)& pCds, SMTO_NORMAL, 0, &lpdwResult);
 			Hello = false;
 		}
@@ -92,7 +94,7 @@ DWORD WINAPI MessageHandler(LPVOID nothing)
 			pCds.dwData = cds.dwData;
 			pCds.cbData = lstrlenA(SlsUrl) + 1;
 			pCds.lpData = (LPVOID)SlsUrl;
-			DWORD lpdwResult;
+			DWORD_PTR lpdwResult;
 			SendMessageTimeout((HWND)wParamProc, WM_COPYDATA, (WPARAM)hWndProc, (LPARAM)& pCds, SMTO_NORMAL, 0, &lpdwResult);
 			Sls = false;
 		}
@@ -102,7 +104,7 @@ DWORD WINAPI MessageHandler(LPVOID nothing)
 			pCds.dwData = cds.dwData;
 			pCds.cbData = lstrlenA(GameString) + 1;
 			pCds.lpData = (LPVOID)GameString;
-			DWORD lpdwResult;
+			DWORD_PTR lpdwResult;
 			SendMessageTimeout((HWND)wParamProc, WM_COPYDATA, (WPARAM)hWndProc, (LPARAM)& pCds, SMTO_NORMAL, 0, &lpdwResult);
 			GameStr = false;
 		}
@@ -112,7 +114,7 @@ DWORD WINAPI MessageHandler(LPVOID nothing)
 			pCds.dwData = cds.dwData;
 			pCds.cbData = lstrlenA(TicketStr) + 1;
 			pCds.lpData = (LPVOID)TicketStr;
-			DWORD lpdwResult;
+			DWORD_PTR lpdwResult;
 			SendMessageTimeout((HWND)wParamProc, WM_COPYDATA, (WPARAM)hWndProc, (LPARAM)& pCds, SMTO_NORMAL, 0, &lpdwResult);
 			Ticket = false;
 		}
@@ -122,7 +124,7 @@ DWORD WINAPI MessageHandler(LPVOID nothing)
 			pCds.dwData = cds.dwData;
 			pCds.cbData = lstrlenA(LastSvrStr) + 1;
 			pCds.lpData = (LPVOID)LastSvrStr;
-			DWORD lpdwResult;
+			DWORD_PTR lpdwResult;
 			SendMessageTimeout((HWND)wParamProc, WM_COPYDATA, (WPARAM)hWndProc, (LPARAM)& pCds, SMTO_NORMAL, 0, &lpdwResult);
 			LastSvr = false;
 		}
@@ -132,13 +134,30 @@ DWORD WINAPI MessageHandler(LPVOID nothing)
 			pCds.dwData = cds.dwData;
 			pCds.cbData = lstrlenA(CharCntStr) + 1;
 			pCds.lpData = (LPVOID)CharCntStr;
-			DWORD lpdwResult;
+			DWORD_PTR lpdwResult;
 			SendMessageTimeout((HWND)wParamProc, WM_COPYDATA, (WPARAM)hWndProc, (LPARAM)& pCds, SMTO_NORMAL, 0, &lpdwResult);
 			CharCnt = false;
 		}
 		Sleep(1000);
 	}
 	return 1;
+}
+
+void InitDiscord()
+{
+	DiscordEventHandlers handlers;
+	memset(&handlers, 0, sizeof(handlers));
+
+	Discord_Initialize("880294531667476500", &handlers, 1, "");
+}
+
+void UpdatePresence()
+{
+	DiscordRichPresence discordPresence;
+	memset(&discordPresence, 0, sizeof(discordPresence));
+	discordPresence.largeImageKey = "tera_default";
+	discordPresence.startTimestamp = time(0);
+	Discord_UpdatePresence(&discordPresence);
 }
 
 extern "C" __declspec(dllexport) void LaunchGame(LPCSTR lpSlsUrl, LPCSTR lpGameStr)
@@ -187,6 +206,9 @@ extern "C" __declspec(dllexport) void LaunchGame(LPCSTR lpSlsUrl, LPCSTR lpGameS
 	ResumeThread(lpProcessInformation.hThread);
 	CreateThread(0, 0, MessageHandler, 0, 0, 0);
 
+	InitDiscord();
+	UpdatePresence();
+
 	// Listen to incoming messages, translate and dispatch them to WndProc for processing.
 	// This procedure will block the Thread it's running on until PostQuitMessage is received.
 	MSG msg;
@@ -198,6 +220,7 @@ extern "C" __declspec(dllexport) void LaunchGame(LPCSTR lpSlsUrl, LPCSTR lpGameS
 
 	// If we get out of the loop that means we received PostQuitMessage, so assume client termination and exit.
 	ClientTerminated = true;
+	Discord_Shutdown();
 	CloseHandle(lpProcessInformation.hProcess);
 }
 
